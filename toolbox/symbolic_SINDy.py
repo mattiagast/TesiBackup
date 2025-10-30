@@ -6,7 +6,7 @@ import os
 from D_CODE.run_simulation import run as run_SRT
 from D_CODE.run_simulation_vi import run as run_DCODE
 from toolbox.auxiliary_functions import intercept_library_fun
-from toolbox.auxiliary_functions import check_building_blocks, filter_building_blocks # Filter
+from toolbox.auxiliary_functions import check_building_blocks, filter_building_blocks, filter_scalar_multiples # Filter
 from data.SINDy_data import evaluate_RMSE_d
 
 # NOTE: Ulteriori possibili miglioramenti:
@@ -20,7 +20,7 @@ from data.SINDy_data import evaluate_RMSE_d
 
 class symbolic_SINDy(): 
 
-    def __init__(self, SR_method='SR-T', x_id=0, alg='tv', degree=3, threshold=0.09, penalty=20, product=False):
+    def __init__(self, SR_method='SR-T', x_id=0, alg='tv', degree=3, threshold=0.09, penalty=20, product=False, max_patience=4):
         self.SR_method = SR_method # either 'SR-T' or 'D-CODE'
         self.x_id = x_id 
         self.alg = alg
@@ -28,6 +28,7 @@ class symbolic_SINDy():
         self.threshold = threshold
         self.penalty = penalty
         self.product = product
+        self.max_patience = max_patience
 
 
 
@@ -54,7 +55,7 @@ class symbolic_SINDy():
 
     def call(self, X_list, dX_list, param_list, feature_names, dt, building_blocks_lambda, function_names, patience, lazy, ode, ode_name, ode_param, freq_SR, n_sample, noise_ratio, seed, n_seed, T0, T, dim_x, dim_k):
 
-        if building_blocks_lambda is None or patience > 4: # either SR has never been called or patience is over (the found building blocks have not been useful over last 5 iterations)
+        if building_blocks_lambda is None or patience > self.max_patience: # either SR has never been called or patience is over (the found building blocks have not been useful over last 5 iterations)
 
             if lazy == False: # -> compute the building blocks with Symbolic Regression
                 if self.SR_method == 'SR-T':
@@ -77,10 +78,15 @@ class symbolic_SINDy():
             # building_blocks_lambda.append(lambda X0, X1, X2: np.sin(5*X2))
             # function_names.append(lambda X0, X1, X2: "sin(5*"+X2+")")
 
-        # filter the building blocks
+        # filter the building blocks:
+        # Delete all the building blocks that generate NaN on the observed data
         building_blocks_lambda, function_names = check_building_blocks(X_list, building_blocks_lambda, function_names)
+        # Delete all the building blocks that are already present in SINDy Polynomial CFL
         building_blocks_lambda, function_names = filter_building_blocks(feature_names, building_blocks_lambda, function_names, self.degree)
-        
+        # Delete all the building blocks that are rendondant 
+        building_blocks_lambda, function_names = filter_scalar_multiples(feature_names, building_blocks_lambda, function_names)
+        # NOTE: It tooks some seconds
+
         print('')
         print('Searching for the best building block:')
         patience += 1

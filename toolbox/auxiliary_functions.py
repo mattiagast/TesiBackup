@@ -141,14 +141,20 @@ def bb_combinations(building_blocks_lambda_0, building_blocks_lambda_1, function
     return bbs, fns
 
 
+
+
 # Filter of the building blocks:
-# Mettili in auxiliary functions
-# Filter 
+
 from sympy import symbols, simplify 
 from itertools import combinations_with_replacement
 import sympy as sp
 
+# Filtro 1: rimuovi NaN
 def check_building_blocks(X_list, building_blocks_lambda, function_names):
+    """
+    Controlla ed eventualmente rimuove i building blocks che valutati in
+    X_list generano dei NaN.
+    """
     X_all = np.concatenate(X_list, axis=0)   # shape (n_traj*n_time, n_dim)
     valid_functions = [] 
     valid_names = []
@@ -162,6 +168,7 @@ def check_building_blocks(X_list, building_blocks_lambda, function_names):
             valid_names.append(function_names[i])   
 
     return valid_functions, valid_names 
+
 
 def generate_monomials(feature_names, degree):
     """
@@ -193,6 +200,7 @@ def is_monomial_to_remove(f, monomials, feature_names):
     except:
         return False
 
+# Filtro 2: rimuovi i termini già presenti in SINDy
 def filter_building_blocks(feature_names, building_blocks_lambda, function_names, degree):
     """
     Filtra i lambda in building_blocks_lambda rimuovendo i monomi fino a 'degree'.
@@ -206,4 +214,41 @@ def filter_building_blocks(feature_names, building_blocks_lambda, function_names
         if not is_monomial_to_remove(f, monomials_to_remove, feature_names):
             filtered_blocks.append(f)
             filtered_names.append(name)
+    return filtered_blocks, filtered_names
+
+
+def filter_scalar_multiples(feature_names, building_blocks_lambda, function_names):
+    """
+    Rimuove funzioni proporzionali di tipo C*f anche se i function_names
+    sono lambda che restituiscono stringhe simboliche.
+    """
+    # Crea variabili simboliche
+    vars_sym = sp.symbols(feature_names)
+    local_map = {f"X{i}": vars_sym[i] for i in range(len(feature_names))}
+
+    # Converte le lambda in espressioni sympy
+    sym_exprs = []
+    for f_name in function_names:
+        expr_str = f_name(*feature_names)       # es: "sin(3*X0)"
+        expr = sp.sympify(expr_str, locals=local_map)
+        sym_exprs.append(expr)
+
+    keep_indices = []
+    removed = set()
+
+    for i, expr_i in enumerate(sym_exprs):
+        if i in removed:
+            continue
+        keep_indices.append(i)
+        for j in range(i + 1, len(sym_exprs)):
+            if j in removed:
+                continue
+            expr_j = sym_exprs[j]
+            ratio = sp.simplify(expr_i / expr_j)
+            # se il rapporto è costante (nessuna variabile libera)
+            if ratio.free_symbols == set():
+                removed.add(j)
+
+    filtered_blocks = [building_blocks_lambda[i] for i in keep_indices]
+    filtered_names = [function_names[i] for i in keep_indices]
     return filtered_blocks, filtered_names

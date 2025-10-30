@@ -99,7 +99,7 @@ class Experiment():
 
 
         # evaluating the model:
-        self.rmse, _ = evaluate_RMSE_d(self.model_star, self.ode, 10, 10, self.ode.init_high, self.ode.init_low, self.T-10, self.T, self.dim_k)
+        self.rmse, _ = evaluate_RMSE_d(self.model_star, self.ode, 10, 10, self.ode.init_high, self.ode.init_low, max(self.T-10, 0), self.T, self.dim_k)
         print('RMSE: ', self.rmse) # RMSE on time window [T, T+10]
         print('')
         self.rmse_history.append(self.rmse)
