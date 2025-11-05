@@ -712,8 +712,8 @@ def SINDy_data_HD(ode_name, ode_param, freq, n_sample, noise_ratio, dim_x, dim_k
     # print(yt[0:20, 0, 2])
 
     # numerical differentiation:
-    value = 5 / 150
-    array = np.full((150, 1, 1), value)
+    value = 1 / freq # 5 / 150
+    array = np.full(( int((T-T0)*freq) , 1, 1), value)
     #print((dg.solver.t[1:] - dg.solver.t[:-1])[:, None, None])
     #print(np.shape((dg.solver.t[1:] - dg.solver.t[:-1])[:, None, None]))
     #print(array)
@@ -773,3 +773,60 @@ def SINDy_data_HD(ode_name, ode_param, freq, n_sample, noise_ratio, dim_x, dim_k
     #     feature_names +=  ["a", "b"]
 
     return X_list, dX_list, param_list, feature_names
+
+
+
+def evaluate_RMSE_HD(model, latent_data, freq, n_sample, T0, T, dim_k=1):
+    # function computing the RMSE (and the MSE) of a given model between T0 and T for an HD data: 
+
+    np.random.seed(666)
+    dt = 1 / freq
+
+    # input trajectories:
+    xt_true = np.array(latent_data)[n_sample, :, :]# Shape: (N_sample, Nt, dim_x)
+    xt_true = np.transpose(xt_true, (1, 0, 2)) 
+    #print(np.shape(xt_true))
+
+    if T0: # if T0>0, cut portion [0,T0] 
+        xt_true = xt_true[T0*freq:, :, :]
+    #print(np.shape(xt_true))
+
+
+    # estimated trajectories:
+    pred_0_list = []
+    for i in range(n_sample):
+
+        correct_param = xt_true[0, i, -dim_k:]
+        #print(np.shape(correct_param))
+
+        t = np.arange(T0,T,dt)
+        T_plot = len(t)
+        test_params = np.tile(correct_param, (T_plot,1))
+        if dim_k != 0:
+            pred_0 = model.simulate(xt_true[0, i, :][:-dim_k], t= t[:T_plot], u = test_params)
+        else: # dim_k == 0
+            pred_0 = model.simulate(xt_true[0, i, :], t= t[:T_plot])
+        pred_0_list.append(pred_0)
+    #print(np.shape(pred_0_list))
+
+
+    xt_true = xt_true[:len(pred_0), :, :]
+    if dim_k != 0:
+        xt_true = xt_true[:, :, :-dim_k]
+    xt_true = xt_true.squeeze()
+    #print(np.shape(xt_true)) #(151, 25, 2)
+    pred_0_list = np.transpose(pred_0_list, (1, 0, 2))
+    pred_0_list = pred_0_list.squeeze()
+    #print(np.shape(pred_0_list)) #(151, 25, 2)
+
+    # RMSE:
+    rmse_0_list = []
+    mse_0_list = []
+    for i in range(n_sample):
+        rmse_0 = root_mean_squared_error(xt_true[:, i], pred_0_list[:,i]) 
+        mse_0 = mean_squared_error(xt_true[:, i], pred_0_list[:,i])
+        rmse_0_list.append(rmse_0)
+        mse_0_list.append(mse_0)
+    rmse_0 = np.mean(rmse_0_list)
+    mse_0 = np.mean(mse_0_list)
+    return rmse_0, mse_0

@@ -437,9 +437,9 @@ class GompertzODE(ODE):
         self.a, self.b = self.param
         self.init_high = 0.01
         if self.has_coef:
-            self.T = 16 # 5
+            self.T = 5
         else:
-            self.T = 16 # 5
+            self.T = 5
         self.name = 'GompertzODE'
         self.std_base = 0.23405202469895242
 
@@ -784,10 +784,10 @@ class TVLvODE(ODE):
     def __init__(self, param=None):
         super().__init__(3, param)
         self.a, self.b, self.c, self.d = self.param
-        self.init_high = [20., 20., 0.]     # TODO: definire per il caso specifico finale
+        self.init_high = [20., 20., 0.]
         self.init_low = [5., 5., 0.]
         self.T = 150
-        self.std_base = 16.639655602643543  # TODO: definire per il caso specifico finale
+        self.std_base = 8.743084594979782 # NOTE: calcolato come RMSE di dX_list su 200 curve noise-free
         self.name = 'TVLvODE'
 
     def _dx_dt(self, X, Y, t):
@@ -824,7 +824,7 @@ class TVLvODE(ODE):
 
 class TVLvODE2(ODE):
     """
-    Time varying Lotka-Volterra equations inspired by EKF-SINDy test-case
+    Time varying Lotka-Volterra equations inspired by EKF-SINDy test-case modified for the problem
     https://en.wikipedia.org/wiki/Lotka-Volterra_equations
     EKF-SINDy: https://arxiv.org/abs/2411.04842
     """
@@ -832,10 +832,10 @@ class TVLvODE2(ODE):
     def __init__(self, param=None):
         super().__init__(3, param)
         self.a, self.b, self.c, self.d = self.param
-        self.init_high = [20., 20., 0.]     # TODO: definire per il caso specifico finale
+        self.init_high = [20., 20., 0.]     
         self.init_low = [5., 5., 0.]
         self.T = 50 # 100
-        self.std_base = 5  # TODO: definire per il caso specifico finale (non considerare la variabilità del tempo)
+        self.std_base = 9.000675159676526 # NOTE: calcolato come RMSE di dX_list su 200 curve noise-free
         self.name = 'TVLvODE2'
 
     def _dx_dt(self, X, Y, t):
@@ -856,11 +856,11 @@ class TVLvODE2(ODE):
         C = var_dict['C']
         if self.has_coef:
             eq1 = (C + C*sympy.sin(C*X2)) * X0 + (C + C*sympy.Heaviside(X2-C)) * X0 * X1
-            eq2 = C * X1 + (C + C*X2) * X0 * X1
+            eq2 = C * X1 + C * X0 * X1
             eq3 = 1
         else:
             eq1 = (C + C*sympy.sin(C*X2)) * X0 + (C + C*sympy.Heaviside(X2-C)) * X0 * X1
-            eq2 = C * X1 + (C + C*X2) * X0 * X1
+            eq2 = C * X1 + C * X0 * X1
             eq3 =  1
         return [eq1, eq2, eq3]
 
@@ -872,7 +872,7 @@ class TVLvODE2(ODE):
 
 class TVLvODE2_d(ODE):
     """
-    Time varying Lotka-Volterra equations inspired by EKF-SINDy test-case
+    Time varying Lotka-Volterra equations inspired by EKF-SINDy test-case modfied for the problem
     https://en.wikipedia.org/wiki/Lotka-Volterra_equations
     EKF-SINDy: https://arxiv.org/abs/2411.04842
     """
@@ -880,10 +880,10 @@ class TVLvODE2_d(ODE):
     def __init__(self, param=None):
         super().__init__(3, param)
         self.a, self.b, self.c, self.d = self.param
-        self.init_high = [20., 20., 0.]    
-        self.init_low = [5., 5., 0.]
+        self.init_high = [20., 20., 0.] # [20., 20., 0.]    
+        self.init_low = [5., 5., 0.] # [5., 5., 0.]
         self.T = 100
-        self.std_base = 5  # TODO: definire per il caso specifico finale (non considerare la variabilità del tempo)
+        self.std_base = 9.738077440682273 # NOTE: calcolato come RMSE di dX_list su 200 curve noise-free
         self.name = 'TVLvODE2_d'
 
     def _dx_dt(self, X, Y, t):
@@ -904,11 +904,11 @@ class TVLvODE2_d(ODE):
         C = var_dict['C']
         if self.has_coef:
             eq1 = (C + C*sympy.sin(C*X2)) * X0 + (C + C*sympy.Heaviside(X2-C)) * X0 * X1
-            eq2 = C * X1 + (C + C*X2) * X0 * X1
+            eq2 = C * X1 + C * X0 * X1
             eq3 = 1
         else:
             eq1 = (C + C*sympy.sin(C*X2)) * X0 + (C + C*sympy.Heaviside(X2-C)) * X0 * X1
-            eq2 = C * X1 + (C + C*X2) * X0 * X1
+            eq2 = C * X1 + C * X0 * X1
             eq3 =  1
         return [eq1, eq2, eq3]
 
@@ -928,15 +928,15 @@ class TVLvODE3(ODE):
     def __init__(self, param=None):
         super().__init__(3, param)
         self.a, self.b, self.c, self.d = self.param
-        self.init_high = [20., 20., 0.]    
-        self.init_low = [5., 5., 0.]
-        self.T = 30
-        self.std_base = 5  # TODO: definire per il caso specifico finale (non considerare la variabilità del tempo)
+        self.init_high = [24., 14., 0.]    
+        self.init_low = [16., 6., 0.]
+        self.T = 50
+        self.std_base = 5.441674054927272  # TODO: definire per il caso specifico finale (non considerare la variabilità del tempo)
         self.name = 'TVLvODE3'
 
     def _dx_dt(self, X, Y, t):
         imp = ((self.b + 0.01) if t > 50 else self.b) * X * Y      # Gestire l'impulso
-        dxdt = (self.a + 0.4*np.sin(4*t)) * X + imp
+        dxdt = (self.a + 0.4*np.sin(4*t)* (1 / (1 + np.exp(-1 * (t - 20)))) ) * X + imp
         dydt = self.c * Y + self.d * X * Y
         dtdt = 1
         return [dxdt, dydt, dtdt]

@@ -9,26 +9,24 @@ from toolbox.auxiliary_functions import intercept_library_fun
 from toolbox.auxiliary_functions import check_building_blocks, filter_building_blocks, filter_scalar_multiples # Filter
 from data.SINDy_data import evaluate_RMSE_d
 
-# NOTE: Ulteriori possibili miglioramenti:
-# - Scegliere il modello valutando piu threshold e.g [0.09, 0.20, 0.35]
-
 # TODO: Possibili miglioramenti:
-# - Gestire il caso no building blocks con il semplice SINDy 
-# - Metodo 'update' che gestisce l'attributo model e bb metodo get_feature_names
-# - Metodo 'print' per salvare il modello
+# - Gestire il caso no useful building blocks con il semplice SINDy (e complessità)
+# - Metodo 'update' che gestisce l'attributo model e il building block, metodo get_feature_names come in SINDy
+# - Metodo 'print' per stampare info del modello anche oltre il fit
 
 
 class symbolic_SINDy(): 
 
     def __init__(self, SR_method='SR-T', x_id=0, alg='tv', degree=3, threshold=0.09, penalty=20, product=False, max_patience=4):
         self.SR_method = SR_method # either 'SR-T' or 'D-CODE'
-        self.x_id = x_id 
-        self.alg = alg
-        self.degree = degree
-        self.threshold = threshold
-        self.penalty = penalty
-        self.product = product
-        self.max_patience = max_patience
+        self.x_id = x_id # dimension on which SR is performed
+        self.alg = alg # algebric differentiation method
+        self.degree = degree # degree of the Polynomial CFL in SINDy
+        self.threshold = threshold # STLSQ threshold
+        self.penalty = penalty # Maximum model complexity allowed
+        self.product = product # if True then tensor product in the CFL
+
+        self.max_patience = max_patience # max patience before calling SR again in on-the-fly applications
 
 
 
@@ -85,7 +83,7 @@ class symbolic_SINDy():
         building_blocks_lambda, function_names = filter_building_blocks(feature_names, building_blocks_lambda, function_names, self.degree)
         # Delete all the building blocks that are rendondant 
         building_blocks_lambda, function_names = filter_scalar_multiples(feature_names, building_blocks_lambda, function_names)
-        # NOTE: It tooks some seconds
+        # NOTE: This last operation tooks some seconds
 
         print('')
         print('Searching for the best building block:')
@@ -96,7 +94,8 @@ class symbolic_SINDy():
         polynomial_library = ps.PolynomialLibrary(degree=self.degree, include_bias=False) # polynomial library
 
         if len(building_blocks_lambda) == 0:
-            print("No useful building blocks found")
+            print("No valid building block found")
+            # TODO: -> Lancia SINDy classico
             return None, None, None, None, None, patience
         
         for i in range(len(building_blocks_lambda)):
@@ -179,7 +178,7 @@ class symbolic_SINDy():
             print('')
 
             # final model:
-            print('smart-SINDy model:')
+            print('Smart-SINDy model:')
             model.print()
 
             # save model and bb: 
