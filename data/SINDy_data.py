@@ -20,7 +20,7 @@ def SINDy_data(ode_name, ode_param, freq, n_sample, noise_ratio, dim_x, dim_k, T
     noise_sigma = ode.std_base * noise_ratio
 
     # data simulation: 
-    dg = data.DataGenerator(ode, T, freq, n_sample, noise_sigma, init_low, init_high) 
+    dg = data.DataGenerator(ode, T, freq, n_sample, noise_sigma, init_low, init_high)
     yt = dg.generate_data()
     #print(np.shape(yt)) 
     # print(yt[0:20, 0, 0]) 
@@ -783,7 +783,7 @@ def evaluate_RMSE_HD(model, latent_data, freq, n_sample, T0, T, dim_k=1):
     dt = 1 / freq
 
     # input trajectories:
-    xt_true = np.array(latent_data)[n_sample, :, :]# Shape: (N_sample, Nt, dim_x)
+    xt_true = np.array(latent_data)[:n_sample, :, :]# Shape: (N_sample, Nt, dim_x)
     xt_true = np.transpose(xt_true, (1, 0, 2)) 
     #print(np.shape(xt_true))
 

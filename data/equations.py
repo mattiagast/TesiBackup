@@ -75,7 +75,9 @@ def get_ode(ode_name, param):
     elif ode_name == 'OscilVdpODE':
         ode = OscilVdpODE(param)
     elif ode_name == 'OscilVdpODE_par_w':
-        ode = OscilVdpODE_par_w(param)   
+        ode = OscilVdpODE_par_w(param) 
+    elif ode_name == 'ReactionDiffusion':
+        ode = ReactionDiffusion(param)   
     else:
         raise ValueError('{} is not a supported ode.'.format(ode_name))
     return ode
@@ -663,7 +665,13 @@ class HillODE(ODE):
     def __init__(self, param=None):
         super().__init__(2, param)
         self.n, self.k, self.ka, self.ky = self.param
-        self.init_high = 10.
+
+        self.init_low = [0., 0.5]
+        self.init_high = [5., 1.]
+
+        self.name = "HillODE"
+        self.T = 15
+        self.std_base = 0.1147598958650093
 
     def _dx_dt(self, X, Y):
         dxdt = self.k * np.power(Y, self.n) / (self.ka + np.power(Y, self.n))
@@ -671,7 +679,7 @@ class HillODE(ODE):
         return [dxdt, dydt]
 
     def get_default_param(self):
-        return 1., 1., 1., 1.
+        return 2.8, 1.0, 0.5, 0.1
 
     def get_expression(self):
         var_dict = self.get_var_dict()
@@ -880,8 +888,8 @@ class TVLvODE2_d(ODE):
     def __init__(self, param=None):
         super().__init__(3, param)
         self.a, self.b, self.c, self.d = self.param
-        self.init_high = [20., 20., 0.] # [20., 20., 0.]    
-        self.init_low = [5., 5., 0.] # [5., 5., 0.]
+        self.init_high = [20., 20., 0.]    
+        self.init_low = [5., 5., 0.]
         self.T = 100
         self.std_base = 9.738077440682273 # NOTE: calcolato come RMSE di dX_list su 200 curve noise-free
         self.name = 'TVLvODE2_d'
@@ -1305,18 +1313,28 @@ class FHN(ODE):
         https://en.wikipedia.org/wiki/FitzHugh%E2%80%93Nagumo_model
     """
     def __init__(self, param=None):
-        super().__init__(2, param)
-        self.a, self.b = self.param
-        self.init_high = 2.
-        self.T = 25
+        super().__init__(3, param)
+        self.a, self.b, self.eps, self.I = self.param
+        self.init_high = [2., 2., 0]
+        self.init_low = [0.,0., 0]
+        self.T = 100 #50 # 25
+
+        self.name = "FHN"
+        self.std_base = 1.
 
     def get_default_param(self):
-        return 1., 0.
+        return 1., 0., 1., 0.
 
-    def _dx_dt(self, x, y):
-        dxdt = x - 1. / 3. * x * x * x - y
-        dydt = x + self.a - self.b * y
-        return [dxdt, dydt]
+    def _dx_dt(self, x, y, t):
+
+        A = 3
+        B = 0.04
+
+        I_inp = self.I * (1 - np.exp(-A * (1 - np.exp(-B * t))))
+        dxdt = x - 1. / 3. * x * x * x - y + I_inp
+        dydt = self.eps * (x + self.a - self.b * y)
+        dtdt = 1.
+        return [dxdt, dydt, dtdt]
 
     def get_expression(self):
         var_dict = self.get_var_dict()
@@ -1332,7 +1350,7 @@ class FHN(ODE):
         return [eq1, eq2]
 
     def functional_theta(self, theta):
-        assert len(theta) == 2
+        assert len(theta) == 4
         new_ode = FHN(theta)
         return new_ode.dx_dt_batch
 
@@ -1466,10 +1484,11 @@ class OscilVdpODE(ODE):
         self.init_low = [0., 0.]
 
         self.has_coef = True
-        self.T = 16
+        self.T = 10
+        self.positive = False
         
         self.name = 'OscilVdpODE'
-        self.std_base = 1. # TODO: check this value
+        self.std_base = 1.366500494994911
 
     def _dx_dt(self, X, Y):
         dxdt = self.mu * (1 - Y**2) * X - Y +  self.A * np.sin(self.omega * Y**2)
@@ -1632,5 +1651,48 @@ class OscillatingSelkovODE_d(ODE):
 #         return new_ode.dx_dt_batch
 
 
+class ReactionDiffusion(ODE):
+    """
+    Reaction-Diffusion class for the HD test.
+    Note: this ODE is a fictitius ODe aiming to store the training information 
+    """
 
+    def __init__(self, param=None):
+        super().__init__(2, param)
+        self.a, self.b = self.param
+        self.init_high = [0.01, 0.01]
+        self.init_low = [0., 0.]
+
+        self.positive = False
+
+        self.T = 20
+
+        self.name = 'ReactionDiffusion'
+        self.std_base = 1.0
+
+    def _dx_dt(self, X, Y):
+        dxdt = 1 * X * Y
+        dydt = 1 * X * Y
+        return [dxdt, dydt]
+
+    def get_default_param(self):
+        return 1., 1.
+
+    def get_expression(self):
+        var_dict = self.get_var_dict()
+        X0 = var_dict['X0']
+        X1 = var_dict['X1']
+        C = var_dict['C']
+        if self.has_coef:
+            eq1 = C + 0*X0
+            eq2 = C + 0*X1
+        else:
+            eq1 = C + 0*X0
+            eq2 = C + 0*X1
+        return [eq1, eq2]
+
+    def functional_theta(self, theta):
+        assert len(theta) == 2
+        new_ode = ReactionDiffusion(theta)
+        return new_ode.dx_dt_batch
 
