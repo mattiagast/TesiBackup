@@ -666,12 +666,12 @@ class HillODE(ODE):
         super().__init__(2, param)
         self.n, self.k, self.ka, self.ky = self.param
 
-        self.init_low = [0., 0.5]
-        self.init_high = [5., 1.]
+        self.init_low = [0., 0.]
+        self.init_high = [10., 10.]
 
         self.name = "HillODE"
         self.T = 15
-        self.std_base = 0.2527248810915297
+        self.std_base = 0.5831910543183362
 
     def _dx_dt(self, X, Y):
         dxdt = self.k * np.power(Y, self.n) / (self.ka + np.power(Y, self.n))
