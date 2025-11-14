@@ -671,7 +671,7 @@ class HillODE(ODE):
 
         self.name = "HillODE"
         self.T = 15
-        self.std_base = 0.1147598958650093
+        self.std_base = 0.2527248810915297
 
     def _dx_dt(self, X, Y):
         dxdt = self.k * np.power(Y, self.n) / (self.ka + np.power(Y, self.n))
@@ -1521,27 +1521,28 @@ class OscilVdpODE_par_w(ODE):
     """
     Modified Van der Pol system with a oscillating forcing term.
     Fictitius ODE to test Simbolic-SINDy
-    dim k_= 1
+    dim_k = 1
     """
 
     def __init__(self, param=None):
         super().__init__(3, param)
         self.mu, self.A = self.param
 
-        self.init_high = [1., 1., 10.]
+        self.init_high = [1., 1., np.pi]
         self.init_low = [0., 0., 1.]
 
         self.has_coef = True
-        self.T = 16
+        self.T = 10
+        self.positive = False
         
-        self.name = 'OscilVdpODE_par_w'
-        self.std_base = 1. # TODO: check this value
+        self.name = 'OscilVdpODE'
+        self.std_base = 1.366500494994911
 
-    def _dx_dt(self, X, Y, w):
-        dxdt = self.mu * (1 - Y**2) * X - Y +  self.A * np.sin(w * Y ** 2)
+    def _dx_dt(self, X, Y, Z):
+        dxdt = self.mu * (1 - Y**2) * X - Y +  self.A * np.sin(Z * Y**2)
         dydt = X 
-        dwdt = 0 * X * Y * w
-        return [dxdt, dydt, dwdt]
+        dzdt = 0
+        return [dxdt, dydt, dzdt]
 
     def get_default_param(self):
         return 1., 1.
@@ -1553,13 +1554,13 @@ class OscilVdpODE_par_w(ODE):
         X2 = var_dict['X2']
         C = var_dict['C']
         if self.has_coef:
-            eq1 = C * (1 - X1**2) * X0 - X1 + C * sympy.sin(X1**2 * X2)
+            eq1 = C * (1 - X1**2) * X0 - X1 + C * sympy.sin( X2* X1**2) 
             eq2 = X0
-            eq3 = 0 * X0 * X1 * X2
+            eq3 = 0
         else:
-            eq1 = (1 - X1**2) * X0 - X1 + sympy.sin(X1**2 * X2) 
+            eq1 = (1 - X1**2) * X0 - X1 + sympy.sin(X2 * X1**2) 
             eq2 = X0 
-            eq3 = 0 * X0 * X1 * X2
+            eq3 = 0
         return [eq1, eq2, eq3]
 
     def functional_theta(self, theta):
