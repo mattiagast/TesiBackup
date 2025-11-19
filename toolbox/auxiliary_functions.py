@@ -170,6 +170,34 @@ def check_building_blocks(X_list, building_blocks_lambda, function_names):
     return valid_functions, valid_names 
 
 
+# Filtro 1: rimuovi NaN in caso di control variable
+def check_building_blocks_param(X_list, u, building_blocks_lambda, function_names, dim_k):
+    """
+    Controlla ed eventualmente rimuove i building blocks che valutati in
+    X_list generano dei NaN.
+    """
+
+    if dim_k == 1:
+        u_all = np.reshape(u, (-1, 1))    # shape (n_traj*n_time, n_dim=1)
+    else:
+        u_all = np.concatenate(u, axis=0) # shape (n_traj*n_time, n_dim=dim_k)
+
+    x_all = np.concatenate(X_list, axis=0)   # shape (n_traj*n_time, n_dim)
+    X_all = np.concatenate([x_all, u_all], axis=1)  # shape (n_traj*n_time, n_dim + dim_k)
+    valid_functions = [] 
+    valid_names = []
+
+    for i in range(len(building_blocks_lambda)):
+        # Evaluate each building block in X_list
+        vals = building_blocks_lambda[i](*[X_all[:, j] for j in range(X_all.shape[1])])
+        # Check weather it produces a NaN or an invalid output
+        if np.all(np.isfinite(vals)):  
+            valid_functions.append(building_blocks_lambda[i])
+            valid_names.append(function_names[i])   
+
+    return valid_functions, valid_names 
+
+
 def generate_monomials(feature_names, degree):
     """
     Genera tutti i monomi fino a 'degree' dati i nomi delle feature.

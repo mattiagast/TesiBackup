@@ -6,7 +6,7 @@ import os
 from D_CODE.run_simulation import run as run_SRT
 from D_CODE.run_simulation_vi import run as run_DCODE
 from toolbox.auxiliary_functions import intercept_library_fun
-from toolbox.auxiliary_functions import check_building_blocks, filter_building_blocks, filter_scalar_multiples # Filter
+from toolbox.auxiliary_functions import check_building_blocks, check_building_blocks_param, filter_building_blocks, filter_scalar_multiples # Filter
 from data.SINDy_data import evaluate_RMSE_d
 
 # TODO: Possibili miglioramenti:
@@ -221,14 +221,13 @@ class symbolic_SINDy():
             # building_blocks_lambda.append(lambda X0, X1, X2: np.sin(5*X2))
             # function_names.append(lambda X0, X1, X2: "sin(5*"+X2+")")
 
-        # Qua ce da sistemare il fatto che devono prendere in ingresso anche u_param
         # filter the building blocks:
         # Delete all the building blocks that generate NaN on the observed data
-        # building_blocks_lambda, function_names = check_building_blocks(X_list, building_blocks_lambda, function_names)
+        building_blocks_lambda, function_names = check_building_blocks_param(X_list, param_list, building_blocks_lambda, function_names, dim_k)
         # Delete all the building blocks that are already present in SINDy Polynomial CFL
-        # building_blocks_lambda, function_names = filter_building_blocks(feature_names, building_blocks_lambda, function_names, self.degree)
+        building_blocks_lambda, function_names = filter_building_blocks(feature_names, building_blocks_lambda, function_names, self.degree)
         # Delete all the building blocks that are rendondant 
-        # building_blocks_lambda, function_names = filter_scalar_multiples(feature_names, building_blocks_lambda, function_names)
+        building_blocks_lambda, function_names = filter_scalar_multiples(feature_names, building_blocks_lambda, function_names)
         # NOTE: This last operation tooks some seconds
 
         print('')

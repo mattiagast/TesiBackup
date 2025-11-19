@@ -36,6 +36,8 @@ def get_ode(ode_name, param):
         ode = LogisticODE(param)
     elif ode_name == 'HillODE':
         ode = HillODE(param)
+    elif ode_name == 'HillODE_par_k':
+        ode = HillODE_par_k(param)
     elif ode_name == 'SirODE':
         ode = SirODE(param)
     elif ode_name == 'LvODE':
@@ -697,6 +699,55 @@ class HillODE(ODE):
     def functional_theta(self, theta):
         assert len(theta) == 4
         new_ode = HillODE(theta)
+        return new_ode.dx_dt_batch
+
+    
+class HillODE_par_k(ODE):
+    """
+    Hill_equation_(biochemistry)
+    https://en.wikipedia.org/wiki/Hill_equation_(biochemistry)
+    dim_k = 1
+    """
+
+    def __init__(self, param=None):
+        super().__init__(3, param)
+        self.n, self.ka, self.ky = self.param
+
+        self.init_low = [0., 0., 2]
+        self.init_high = [10., 10., 1]
+
+        self.name = "HillODE_par_k"
+        self.T = 15
+        self.std_base = 0.5831910543183362
+
+    def _dx_dt(self, X, Y, k):
+        dxdt = k * np.power(Y, self.n) / (self.ka + np.power(Y, self.n))
+        dydt = -1 * self.ky * Y
+        dkdt = 0
+        return [dxdt, dydt, dkdt]
+
+    def get_default_param(self):
+        return 2.8, 0.5, 0.1
+
+    def get_expression(self):
+        var_dict = self.get_var_dict()
+        X0 = var_dict['X0']
+        X1 = var_dict['X1']
+        X2 = var_dict['X2']
+        C = var_dict['C']
+        if self.has_coef:
+            eq1 = X2 * sympy.Pow(X1, C) / (C + sympy.Pow(X1, C))
+            eq2 = -1 * C * X1
+            eq3 = 0
+        else:
+            eq1 = X2 * X1 / (C + X1)
+            eq2 = -1 * X1
+            eq3 = 0
+        return [eq1, eq2, eq3]
+
+    def functional_theta(self, theta):
+        assert len(theta) == 3
+        new_ode = HillODE_par_k(theta)
         return new_ode.dx_dt_batch
 
 
@@ -1535,7 +1586,7 @@ class OscilVdpODE_par_w(ODE):
         self.T = 10
         self.positive = False
         
-        self.name = 'OscilVdpODE'
+        self.name = 'OscilVdpODE_par_w'
         self.std_base = 1.366500494994911
 
     def _dx_dt(self, X, Y, Z):
