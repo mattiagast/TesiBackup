@@ -142,8 +142,9 @@ def bb_combinations(building_blocks_lambda_0, building_blocks_lambda_1, function
 
 
 
-
-# Filter of the building blocks:
+##################################
+# Filter of the building blocks: #
+##################################
 
 from sympy import symbols, simplify 
 from itertools import combinations_with_replacement
@@ -280,3 +281,60 @@ def filter_scalar_multiples(feature_names, building_blocks_lambda, function_name
     filtered_blocks = [building_blocks_lambda[i] for i in keep_indices]
     filtered_names = [function_names[i] for i in keep_indices]
     return filtered_blocks, filtered_names
+
+
+def filter_complete(X_list, feature_names, degree, building_blocks_lambda, function_names):
+    # 1 - Delete all the building blocks that generate NaN on the observed data
+    filtered_building_blocks_lambda, filtered_function_names = check_building_blocks(X_list, building_blocks_lambda, function_names)
+    # 2 - Delete all the building blocks that are already present in SINDy Polynomial CFL
+    filtered_building_blocks_lambda, filtered_function_names = filter_building_blocks(feature_names, filtered_building_blocks_lambda, filtered_function_names, degree)
+    # 3 - Delete all the building blocks that are rendondant 
+    filtered_building_blocks_lambda, filtered_function_names = filter_scalar_multiples(feature_names, filtered_building_blocks_lambda, filtered_function_names)
+    # NOTE: This last operation tooks some seconds
+
+    return filtered_building_blocks_lambda, filtered_function_names
+
+def filter_complete_param(X_list, param_list, feature_names, degree, dim_k, building_blocks_lambda, function_names):
+    # 1 - Delete all the building blocks that generate NaN on the observed data
+    filtered_building_blocks_lambda, filtered_function_names = check_building_blocks_param(X_list, param_list, building_blocks_lambda, function_names, dim_k)
+    # Delete all the building blocks that are already present in SINDy Polynomial CFL
+    filtered_building_blocks_lambda, filtered_function_names = filter_building_blocks(feature_names, filtered_building_blocks_lambda, filtered_function_names, degree)
+    # Delete all the building blocks that are rendondant 
+    filtered_building_blocks_lambda, filtered_function_names = filter_scalar_multiples(feature_names, filtered_building_blocks_lambda, filtered_function_names)
+    # NOTE: This last operation tooks some seconds
+
+    return filtered_building_blocks_lambda, filtered_function_names
+
+
+# Auxiliary functions for UQ
+from sklearn.pipeline import Pipeline
+
+def sindy_from_coef(coef, feature_library, feature_names):
+    n_features, n_states = coef.shape
+    
+    opt = ps.STLSQ()   # lo stesso optimizer del modello originale
+    opt.coef_ = coef.T   # SINDy usa shape (n_outputs, n_inputs)
+    opt.intercept_ = np.zeros(n_states)
+
+    # ricostruisci pipeline
+    pipe = Pipeline([
+        ("feature_library", feature_library),
+        ("optimizer", opt)
+    ])
+    
+    # ricrea il modello pysindy
+    sindy_model = ps.SINDy(
+        feature_library=feature_library,
+        feature_names=feature_names,
+        optimizer=opt
+    )
+
+    sindy_model.model = pipe
+    sindy_model.feature_names_ = feature_names
+    sindy_model.n_input_features_ = n_features
+    sindy_model.n_output_features_ = n_states
+
+    return sindy_model
+
+
+    
