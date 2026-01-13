@@ -77,7 +77,13 @@ def get_ode(ode_name, param):
     elif ode_name == 'OscilVdpODE':
         ode = OscilVdpODE(param)
     elif ode_name == 'OscilVdpODE_par_w':
-        ode = OscilVdpODE_par_w(param) 
+        ode = OscilVdpODE_par_w(param)
+    elif ode_name == 'OscilVdpODE_par_w_mu':
+        ode = OscilVdpODE_par_w_mu(param)
+    elif ode_name == 'OscilVdpODE_par_w_a':
+        ode = OscilVdpODE_par_w_a(param)
+    elif ode_name == 'TVLogODE':
+        ode = TVLogODE(param)  
     elif ode_name == 'ReactionDiffusion':
         ode = ReactionDiffusion(param)   
     else:
@@ -1033,7 +1039,7 @@ class TVSelkovODE(ODE):
     """
     def __init__(self, param=None):
         super().__init__(3, param)
-        self.rho_up, self.rho_down, self.sigma = self.param
+        self.rho1, self.rho2, self.sigma = self.param
         self.has_coef = True
         self.init_high = [0.1, 0.1, 0.]       # TODO: definire per il caso specifico finale
         self.init_low = [0., 0., 0.]
@@ -1042,25 +1048,13 @@ class TVSelkovODE(ODE):
         self.T = 100 # 300 !!!!
 
     def get_default_param(self):
-        return 0.92, 0.67, 0.1
+        return 0.95, 0.60, 0.01
 
     def _dx_dt(self, x, y, t):
 
-        rho0 = self.rho_up
-        rho1 = self.rho_down
-        ts = 20.0
-        te = 45.0
-        dt = te - ts
-
-        if t <= ts:
-            p = rho0
-        elif t >= te:
-            p =  rho1
-        else:
-            p = rho0 + (rho1 - rho0) * (t - ts) / dt
-
-        dxdt = p - self.sigma * x - x * y * y
-        dydt = -1 * y + self.sigma * x + x * y * y
+        sig = -(self.rho1-self.rho2)/(1+np.exp(-0.5*(t-40)))
+        dxdt = self.rho1 + sig - self.sigma * x - x * y * y
+        dydt = -1 * y + self.sigma * x + x * y * y 
         dtdt = 1
         return [dxdt, dydt, dtdt]
 
@@ -1366,9 +1360,9 @@ class FHN(ODE):
     def __init__(self, param=None):
         super().__init__(3, param)
         self.a, self.b, self.eps, self.I = self.param
-        self.init_high = [2., 2., 0]
+        self.init_high = [0.5, 0.5, 0]
         self.init_low = [0.,0., 0]
-        self.T = 100 #50 # 25
+        self.T = 150 # 100 # 25
 
         self.name = "FHN"
         self.std_base = 1.
@@ -1380,8 +1374,10 @@ class FHN(ODE):
 
         A = 3
         B = 0.04
-
-        I_inp = self.I * (1 - np.exp(-A * (1 - np.exp(-B * t))))
+        if t<60:
+            I_inp = 0
+        else:
+            I_inp = 0.4
         dxdt = x - 1. / 3. * x * x * x - y + I_inp
         dydt = self.eps * (x + self.a - self.b * y)
         dtdt = 1.
@@ -1620,6 +1616,118 @@ class OscilVdpODE_par_w(ODE):
         return new_ode.dx_dt_batch
     
 
+class OscilVdpODE_par_w_mu(ODE):
+    """
+    Modified Van der Pol system with a oscillating forcing term.
+    Fictitius ODE to test Simbolic-SINDy
+    dim_k = 2
+    """
+
+    def __init__(self, param=None):
+        super().__init__(4, param)
+        self.A = self.param[0]
+
+        self.init_high = [1., 1., np.pi, 2]
+        self.init_low = [0., 0., 1., 0.5]
+
+        self.has_coef = True
+        self.T = 10
+        self.positive = False
+        
+        self.name = 'OscilVdpODE_par_w_mu'
+        self.std_base = 1.366500494994911
+
+    def _dx_dt(self, X, Y, Z, m):
+        dxdt = m * (1 - Y**2) * X - Y +  self.A * np.sin(Z * Y**2)
+        dydt = X 
+        dzdt = 0
+        dmdt = 0
+        return [dxdt, dydt, dzdt, dmdt]
+
+    def get_default_param(self):
+        return 1.
+
+    def get_expression(self):
+        var_dict = self.get_var_dict()
+        X0 = var_dict['X0']
+        X1 = var_dict['X1']
+        X2 = var_dict['X2']
+        X3 = var_dict['X3']
+        C = var_dict['C']
+        if self.has_coef:
+            eq1 = X3 * (1 - X1**2) * X0 - X1 + C * sympy.sin( X2* X1**2) 
+            eq2 = X0
+            eq3 = 0
+            eq4 = 0
+        else:
+            eq1 = X3 * (1 - X1**2) * X0 - X1 + sympy.sin(X2 * X1**2) 
+            eq2 = X0 
+            eq3 = 0
+            eq4 = 0
+        return [eq1, eq2, eq3, eq4]
+
+    def functional_theta(self, theta):
+        assert len(theta) == 1
+        new_ode = OscilVdpODE_par_w_mu(theta)
+        return new_ode.dx_dt_batch
+    
+
+class OscilVdpODE_par_w_a(ODE):
+    """
+    Modified Van der Pol system with a oscillating forcing term.
+    Fictitius ODE to test Simbolic-SINDy
+    dim_k = 2
+    """
+
+    def __init__(self, param=None):
+        super().__init__(4, param)
+        self.mu = self.param[0]
+
+        self.init_high = [1., 1., np.pi, 1]
+        self.init_low = [0., 0., 1., 0]
+
+        self.has_coef = True
+        self.T = 10
+        self.positive = False
+        
+        self.name = 'OscilVdpODE_par_w_mu'
+        self.std_base = 1.366500494994911
+
+    def _dx_dt(self, X, Y, Z, A):
+        dxdt = self.mu * (1 - Y**2) * X - Y +  A * np.sin(Z * Y**2)
+        dydt = X 
+        dzdt = 0
+        dAdt = 0
+        return [dxdt, dydt, dzdt, dAdt]
+
+    def get_default_param(self):
+        return 1.
+
+    def get_expression(self):
+        var_dict = self.get_var_dict()
+        X0 = var_dict['X0']
+        X1 = var_dict['X1']
+        X2 = var_dict['X2']
+        X3 = var_dict['X3']
+        C = var_dict['C']
+        if self.has_coef:
+            eq1 = C * (1 - X1**2) * X0 - X1 + X3 * sympy.sin( X2* X1**2) 
+            eq2 = X0
+            eq3 = 0
+            eq4 = 0
+        else:
+            eq1 = (1 - X1**2) * X0 - X1 + X3 * sympy.sin(X2 * X1**2) 
+            eq2 = X0 
+            eq3 = 0
+            eq4 = 0
+        return [eq1, eq2, eq3, eq4]
+
+    def functional_theta(self, theta):
+        assert len(theta) == 1
+        new_ode = OscilVdpODE_par_w_a(theta)
+        return new_ode.dx_dt_batch
+    
+
 class OscillatingSelkovODE_d(ODE):
     """
     Selkov model for Glycolysis
@@ -1663,6 +1771,52 @@ class OscillatingSelkovODE_d(ODE):
     def functional_theta(self, theta):
         assert len(theta) == 2
         new_ode = OscillatingSelkovODE_d(theta)
+        return new_ode.dx_dt_batch
+    
+
+class TVLogODE(ODE):
+    """
+    Time varying oscillator with logaritmic forcing term
+    """
+    def __init__(self, param=None):
+        super().__init__(3, param)
+        self.k, self.c, self.A = self.param
+        self.has_coef = True
+        self.init_high = [1, 1, 0.]       # TODO: definire per il caso specifico finale
+        self.init_low = [0., 0., 0.]
+        self.name = 'TVLogODE'
+        self.std_base = 0.5641061           # TODO: definire per il caso specifico finale
+        self.T = 50 # 300 !!!!
+
+    def get_default_param(self):
+        return 1, 0.3, 0.15
+
+    def _dx_dt(self, x, y, t):
+        dxdt = y
+        dydt = - self.k * x - self.c * y + self.A * np.log(1 + t**2) 
+        dtdt = 1
+        return [dxdt, dydt, dtdt]
+
+    def get_expression(self):
+        var_dict = self.get_var_dict()
+        X0 = var_dict['X0']
+        X1 = var_dict['X1']
+        X2 = var_dict['X2']
+        C = var_dict['C']
+
+        if self.has_coef:
+            eq1 = X1
+            eq2 = -C * X0 - C * X1 + sympy.log(1+X2**2)
+            eq3 = 1
+        else:
+            eq1 = X1
+            eq2 = -C * X0 - C * X1 + sympy.log(1+X2**2)
+            eq3 = 1
+        return [eq1, eq2, eq3]
+
+    def functional_theta(self, theta):
+        assert len(theta) == 3
+        new_ode = TVLogODE(theta)
         return new_ode.dx_dt_batch
 
 

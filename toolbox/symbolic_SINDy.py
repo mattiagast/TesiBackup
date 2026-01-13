@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import pysindy as ps
 import dill
 import os
+import time
 
 from D_CODE.run_simulation import run as run_SRT
 from D_CODE.run_simulation_vi import run as run_DCODE
@@ -118,7 +119,7 @@ class symbolic_SINDy():
                 with open(file_path, 'rb') as f:
                     building_blocks_lambda, function_names = dill.load(f)
             patience = 0
-
+        t0 = time.time()
         # filter the building blocks:
         building_blocks_lambda, function_names = filter_complete(X_list, feature_names, self.degree, building_blocks_lambda, function_names)
 
@@ -163,7 +164,7 @@ class symbolic_SINDy():
             # fitting the model:
             model = ps.SINDy(feature_names=feature_names, feature_library=final_library, optimizer=ps.STLSQ(threshold=self.threshold))
             model.fit(X_list, t=dt, multiple_trajectories=True, x_dot=dX_list)
-            #print('Model:')
+            # print('Model:')
             # model.print()
 
             # print('')
@@ -251,7 +252,8 @@ class symbolic_SINDy():
 
             # update the model internally
             self.__update(model, building_block, final_library, coefficients, model_complexity, lasso_penalty)
-
+            t1 = time.time()
+            print("Total time: ", t1-t0)
             return model, building_blocks_lambda, function_names, model_complexity, lasso_penalty, patience
 
 
@@ -279,7 +281,7 @@ class symbolic_SINDy():
             patience = 0
             # building_blocks_lambda.append(lambda X0, X1, X2: np.sin(5*X2))
             # function_names.append(lambda X0, X1, X2: "sin(5*"+X2+")")
-
+        t0 = time.time()
         # filter the building blocks:
         building_blocks_lambda, function_names = filter_complete_param(X_list, param_list, feature_names, self.degree, dim_k, building_blocks_lambda, function_names)
 
@@ -406,7 +408,8 @@ class symbolic_SINDy():
             print('Lasso penalty: ', lasso_penalty)
 
             self.__update(model, building_block, final_library, coefficients, model_complexity, lasso_penalty)
-
+            t1 = time.time()
+            print("Total time: ", t1-t0)
             return model, building_blocks_lambda, function_names, model_complexity, lasso_penalty, patience
 
 
