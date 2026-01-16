@@ -85,7 +85,11 @@ def get_ode(ode_name, param):
     elif ode_name == 'TVLogODE':
         ode = TVLogODE(param)  
     elif ode_name == 'ReactionDiffusion':
-        ode = ReactionDiffusion(param)   
+        ode = ReactionDiffusion(param) 
+    elif ode_name == 'TVVdpODE':
+        ode = TVVdpODE(param)
+    elif ode_name == 'TVVdpODE2':
+        ode = TVVdpODE2(param)  
     else:
         raise ValueError('{} is not a supported ode.'.format(ode_name))
     return ode
@@ -1817,6 +1821,98 @@ class TVLogODE(ODE):
     def functional_theta(self, theta):
         assert len(theta) == 3
         new_ode = TVLogODE(theta)
+        return new_ode.dx_dt_batch
+
+
+class TVVdpODE(ODE):
+    """
+    Time varying van der Pol equations
+    """
+
+    def __init__(self, param=None):
+        super().__init__(3, param)
+        self.mu, self.A, self.w0 = self.param
+        self.init_high = [2., 2., 0.]    
+        self.init_low = [0., 0., 0.]
+        self.T = 150
+        self.std_base = 5.269730472894847 # NOTE: calcolato come RMSE di dX_list su 200 curve noise-free
+        self.name = 'TVVdpODE'
+        self.positive=False
+
+    def _dx_dt(self, X, Y, t):
+        dxdt = self.mu * (1 - Y**2) * X - Y + self.A * np.cos((self.w0 * t) * t)
+        dydt = X
+        dtdt = 1
+        return [dxdt, dydt, dtdt]
+
+    def get_default_param(self):
+        return 5., 10., 0.02
+
+    def get_expression(self):
+        var_dict = self.get_var_dict()
+        X0 = var_dict['X0']
+        X1 = var_dict['X1']
+        X2 = var_dict['X2']
+        C = var_dict['C']
+        if self.has_coef:
+            eq1 = (C + C*sympy.sin(C*X2)) * X0 + (C + C*sympy.Heaviside(X2-C)) * X0 * X1
+            eq2 = C * X1 + C * X0 * X1
+            eq3 = 1
+        else:
+            eq1 = (C + C*sympy.sin(C*X2)) * X0 + (C + C*sympy.Heaviside(X2-C)) * X0 * X1
+            eq2 = C * X1 + C * X0 * X1
+            eq3 =  1
+        return [eq1, eq2, eq3]
+
+    def functional_theta(self, theta):
+        assert len(theta) == 3
+        new_ode = TVVdpODE(theta)
+        return new_ode.dx_dt_batch
+    
+
+class TVVdpODE2(ODE):
+    """
+    Time varying van der Pol equations
+    """
+
+    def __init__(self, param=None):
+        super().__init__(3, param)
+        self.mu, self.A0, self.w = self.param
+        self.init_high = [2., 2., 0.]    
+        self.init_low = [0., 0., 0.]
+        self.T = 80
+        self.std_base = 9.165338768841108 # NOTE: calcolato come RMSE di dX_list su 200 curve noise-free
+        self.name = 'TVVdpODE2'
+        self.positive=False
+
+    def _dx_dt(self, X, Y, t):
+        dxdt = self.mu * (1 - Y**2) * X - Y + self.A0 * t * np.cos(self.w * t)
+        dydt = X
+        dtdt = 1
+        return [dxdt, dydt, dtdt]
+
+    def get_default_param(self):
+        return 5., 0.5, 4
+
+    def get_expression(self):
+        var_dict = self.get_var_dict()
+        X0 = var_dict['X0']
+        X1 = var_dict['X1']
+        X2 = var_dict['X2']
+        C = var_dict['C']
+        if self.has_coef:
+            eq1 = (C + C*sympy.sin(C*X2)) * X0 + (C + C*sympy.Heaviside(X2-C)) * X0 * X1
+            eq2 = C * X1 + C * X0 * X1
+            eq3 = 1
+        else:
+            eq1 = (C + C*sympy.sin(C*X2)) * X0 + (C + C*sympy.Heaviside(X2-C)) * X0 * X1
+            eq2 = C * X1 + C * X0 * X1
+            eq3 =  1
+        return [eq1, eq2, eq3]
+
+    def functional_theta(self, theta):
+        assert len(theta) == 3
+        new_ode = TVVdpODE2(theta)
         return new_ode.dx_dt_batch
 
 

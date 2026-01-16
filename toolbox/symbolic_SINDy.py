@@ -453,6 +453,7 @@ class symbolic_SINDy():
 
     def uq_plot(self, feature_names=None, eps_var=1e-14):
         
+        eps_var = 1e-14
         coef_list = np.array(self.coef_list)  # (n_models, n_states, n_features)
         n_models, n_states, n_features = coef_list.shape
         lib = self.model.get_feature_names()
@@ -461,25 +462,24 @@ class symbolic_SINDy():
         # Frequenza di inclusione dei termini
         inclusion = np.mean(coef_list != 0, axis=0)  # (n_states, n_features)
 
-        # Filtro: se tutti gli stati si una feature sono nulli -> non plottarla
+        # Filtro: se tutti gli stati di una feature sono nulli -> non plottarla
         var_per_feature = np.var(coef_list, axis=0)  # (n_states, n_features)
         valid_features_mask = np.any(var_per_feature > eps_var, axis=0)
         valid_features_idx = np.where(valid_features_mask)[0]
-
-        # if len(valid_features_idx) == 0:
-        #     print("Nessuna feature con varianza significativa da plottare.")
-        #     return
 
         lib_valid = [lib[i] for i in valid_features_idx]
         coef_median_valid = coef_median[:, valid_features_idx]
         n_features_valid = len(valid_features_idx)
 
-        # plot the figure
-        fig, axes = plt.subplots(n_features_valid, n_states, 
-                                figsize=(4*n_states, 0.6*n_features_valid),
-                                squeeze=False)
+        # Plot
+        fig, axes = plt.subplots(
+            n_features_valid,
+            n_states,
+            figsize=(4 * n_states, 0.6 * n_features_valid),
+            squeeze=False
+        )
 
-        # massimo valore assoluto tra tutti i coefficienti validi + margine
+        # Range comune
         global_ran = np.max(np.abs(coef_list[:, :, valid_features_idx])) + 0.2
         x_common = np.linspace(-global_ran, global_ran, 300)
 
@@ -499,40 +499,68 @@ class symbolic_SINDy():
 
                 if var > eps_var:
                     try:
-                        kde = gaussian_kde(coeff)
-                        y_vals = kde(x_common)
-                        ax.plot(x_common, y_vals, linewidth=1, color='dodgerblue', alpha=alpha_val)
-                        ax.fill_between(x_common, y_vals, alpha=0.3 * alpha_val, color='dodgerblue')
-                    except:
+                        std = np.std(coeff)
+                        # print(std)
+                        if std > 0:
+                            kde = gaussian_kde(coeff)
+                            y_vals = kde(x_common)
+
+                            ax.plot(x_common, y_vals, linewidth=1, alpha=alpha_val)
+                            ax.fill_between(x_common, y_vals, alpha=0.3 * alpha_val)
+                        else:
+                            # Caso completamente degenere (fallback)
+                            c = float(np.mean(coeff))
+                            ax.axvline(c, 0, 1, linewidth=1, alpha=alpha_val)
+
+                    except Exception:
                         pass
+
                 else:
                     c = float(np.mean(coeff))
-                    ax.axvline(c, 0, 1, color='dodgerblue', linewidth=1, alpha=alpha_val)
+                    ax.axvline(c, 0, 1, linewidth=1, alpha=alpha_val)
                     ax.set_xlim(-global_ran, global_ran)
-                    ax.set_ylim(-0.05, 1 * 1.2)
+                    ax.set_ylim(-0.05, 1.2)
 
-                # triangolino rosso (mediana)
+                # Mediana (triangolino)
                 median_val = coef_median[s, f]
-                ax.plot(median_val, 0.1, marker='v', color='red', markersize=3,
-                        transform=ax.get_xaxis_transform())
+                ax.plot(
+                    median_val, 0.1,
+                    marker='v',
+                    markersize=3,
+                    transform=ax.get_xaxis_transform()
+                )
 
-                # tick solo nell'ultima riga
+                # Tick solo ultima riga
                 if idx_plot < n_features_valid - 1:
                     ax.set_xticklabels([])
                 else:
                     ax.tick_params(axis='x', labelsize=5)
 
-            axes[idx_plot, 0].set_ylabel(lib[f], rotation=90, fontsize=4, labelpad=30, va='center')
-
+        # Titoli colonne (stati)
         if feature_names is None:
             feature_names = [f"State {i}" for i in range(n_states)]
 
         for s in range(n_states):
             axes[0, s].set_title(feature_names[s], fontsize=4, pad=20)
 
-        plt.subplots_adjust(hspace=0.4, wspace=0.2)
-        # plt.savefig("kde_coefficients.png", dpi=300, bbox_inches="tight") # high definition save
+        # === Etichette della libreria (fig.text) ===
+        for idx_plot, f in enumerate(valid_features_idx):
+            pos = axes[idx_plot, 0].get_position()
+            y_center = pos.y0 + pos.height / 2
+
+            fig.text(
+                0.02, y_center,
+                lib[f],
+                va='center',
+                ha='right',
+                fontsize=4
+            )
+
+        # Spaziatura finale
+        plt.subplots_adjust(left=0.15, hspace=0.4, wspace=0.2)
+        # plt.savefig("hill_wrong.png", dpi=300, bbox_inches="tight")
         plt.show()
+
 
         
 
