@@ -192,7 +192,7 @@ class symbolic_SINDy():
             errors.append(error)
             n_features_vec.append(np.count_nonzero(np.array(model.coefficients())))
 
-        # print("errors: ", errors)
+        print("errors: ", errors)
         if all(err == 1000 for err in errors):
             print('No model update, all smart-SINDy models are too complex')
             return None, building_blocks_lambda, function_names, None, None, patience
@@ -351,7 +351,7 @@ class symbolic_SINDy():
             errors.append(error)
             n_features_vec.append(np.count_nonzero(np.array(model.coefficients())))
 
-        # print("errors: ", errors)
+        print("errors: ", errors)
         if all(err == 1000 for err in errors):
             print('No model update, all smart-SINDy models are too complex')
             return None, building_blocks_lambda, function_names, None, None, patience

@@ -683,150 +683,215 @@ def evaluate_traj_d_1D(model, ode, freq, n_sample, init_high, init_low,  T0, T, 
     return xt_true, pred_0_list
 
 
-def SINDy_data_HD(ode_name, ode_param, freq, n_sample, noise_ratio, dim_x, dim_k, T0=0, T=15, latent_data = None):
-    # Take as input the latent dimension and return a set of data ready to be used in the SINDy call. 
-    np.random.seed(999)
-    alg = 'tv'
+# def SINDy_data_HD(ode_name, ode_param, freq, n_sample, noise_ratio, dim_x, dim_k, T0=0, T=15, latent_data = None):
+#     # Take as input the latent dimension and return a set of data ready to be used in the SINDy call. 
+#     np.random.seed(999)
+#     alg = 'tv'
 
-    ode = equations.get_ode(ode_name, ode_param)
-    #T = ode.T
-    init_low = ode.init_low 
-    init_high = ode.init_high 
-    has_coef = ode.has_coef 
-    noise_sigma = ode.std_base * noise_ratio
+#     ode = equations.get_ode(ode_name, ode_param)
+#     #T = ode.T
+#     init_low = ode.init_low 
+#     init_high = ode.init_high 
+#     has_coef = ode.has_coef 
+#     noise_sigma = ode.std_base * noise_ratio
 
-    # data simulation: 
-    dg = data.DataGenerator(ode, T, freq, n_sample, noise_sigma, init_low, init_high) 
-    #yt = dg.generate_data()
-    yt = latent_data
-    #print(np.shape(yt)) 
-    # print(yt[0:20, 0, 0]) 
-    # print(yt[0:20, 0, 1]) 
-    # print(yt[0:20, 0, 2])
+#     # data simulation: 
+#     dg = data.DataGenerator(ode, T, freq, n_sample, noise_sigma, init_low, init_high) 
+#     #yt = dg.generate_data()
+#     yt = latent_data
+#     #print(np.shape(yt)) 
+#     # print(yt[0:20, 0, 0]) 
+#     # print(yt[0:20, 0, 1]) 
+#     # print(yt[0:20, 0, 2])
 
-    if T0: # if T0>0, cut portion [0,T0] 
-        yt = yt[T0*freq:, :, :]
-    # print('Dataset shape: ', np.shape(yt))
-    # print(yt[0:20, 0, 0]) 
-    # print(yt[0:20, 0, 1])
-    # print(yt[0:20, 0, 2])
+#     if T0: # if T0>0, cut portion [0,T0] 
+#         yt = yt[T0*freq:, :, :]
+#     # print('Dataset shape: ', np.shape(yt))
+#     # print(yt[0:20, 0, 0]) 
+#     # print(yt[0:20, 0, 1])
+#     # print(yt[0:20, 0, 2])
 
-    # numerical differentiation:
-    value = 1 / freq # 5 / 150
-    array = np.full(( int((T-T0)*freq) , 1, 1), value)
-    #print((dg.solver.t[1:] - dg.solver.t[:-1])[:, None, None])
-    #print(np.shape((dg.solver.t[1:] - dg.solver.t[:-1])[:, None, None]))
-    #print(array)
-    #print(np.shape(array))
-    if noise_sigma == 0:
-        #dxdt_hat = (yt[1:, :, :] - yt[:-1, :, :]) / (dg.solver.t[1:] - dg.solver.t[:-1])[:, None, None]
-        dxdt_hat = (yt[1:, :, :] - yt[:-1, :, :]) / array # TODO: non so perché, ma la versione precedente utilizzava un dt sbagliato, qui ho manualmente impostato dt = 5/150, da rendere generico
-    else:
-        dxdt_hat = num_diff(yt, dg, alg, T0)
-    #print(np.shape(dxdt_hat))
-    #print('Numerical differentiation: Done.')
+#     # numerical differentiation:
+#     value = 1 / freq # 5 / 150
+#     array = np.full(( int((T-T0)*freq) , 1, 1), value)
+#     #print((dg.solver.t[1:] - dg.solver.t[:-1])[:, None, None])
+#     #print(np.shape((dg.solver.t[1:] - dg.solver.t[:-1])[:, None, None]))
+#     #print(array)
+#     #print(np.shape(array))
+
+#     dxdt_hat = (yt[1:, :, :] - yt[:-1, :, :]) / array 
+#     #print(np.shape(dxdt_hat))
+#     #print('Numerical differentiation: Done.')
 
 
-    # build dataset:
-    X_train = yt[:-1, :, :dim_x] # yt[:-1, :, :-1]
-    #print(np.shape(X_train))
-    X_train = np.transpose(X_train, (1, 0, 2))
-    #print(np.shape(X_train))
-    dX_train = dxdt_hat[:, :, :dim_x] # dxdt_hat[:, :, :-1]
-    #print(np.shape(dX_train))
-    dX_train = np.transpose(dX_train, (1, 0, 2))
-    #print(np.shape(dX_train))
+#     # build dataset:
+#     X_train = yt[:-1, :, :dim_x] # yt[:-1, :, :-1]
+#     #print(np.shape(X_train))
+#     X_train = np.transpose(X_train, (1, 0, 2))
+#     #print(np.shape(X_train))
+#     dX_train = dxdt_hat[:, :, :dim_x] # dxdt_hat[:, :, :-1]
+#     #print(np.shape(dX_train))
+#     dX_train = np.transpose(dX_train, (1, 0, 2))
+#     #print(np.shape(dX_train))
 
-    if dim_k != 0:
-        param_train = yt[:-1, :, -dim_k:] # yt[:-1, :, -1]
-        param_train = np.transpose(param_train, (1, 0, 2))
-        param_train = param_train.squeeze()
+#     if dim_k != 0:
+#         param_train = yt[:-1, :, -dim_k:] # yt[:-1, :, -1]
+#         param_train = np.transpose(param_train, (1, 0, 2))
+#         param_train = param_train.squeeze()
 
-    X_list = []
-    dX_list = []
-    param_list = []
-    n_train = len(X_train)
-    for i in range(n_train):
-        X_list.append(X_train[i])
-        dX_list.append(dX_train[i])
-        if dim_k != 0:
-            param_list.append(param_train[i])
+#     X_list = []
+#     dX_list = []
+#     param_list = []
+#     n_train = len(X_train)
+#     for i in range(n_train):
+#         X_list.append(X_train[i])
+#         dX_list.append(dX_train[i])
+#         if dim_k != 0:
+#             param_list.append(param_train[i])
     
-    if dim_x == 1:
-        feature_names = ["X0"]
-        if dim_k == 1:
-            feature_names += ["X1"]
-        elif dim_k == 2:
-            feature_names += ["X1", "X2"]
-    elif dim_x == 2:
-        feature_names = ["X0", "X1"]
-        if dim_k == 1:
-            feature_names += ["X2"]
-    else: # dim_x == 3
-        feature_names = ["X0", "X1", "X2"]
-        if dim_k == 1:
-            feature_names += ["X3"]
+#     if dim_x == 1:
+#         feature_names = ["X0"]
+#         if dim_k == 1:
+#             feature_names += ["X1"]
+#         elif dim_k == 2:
+#             feature_names += ["X1", "X2"]
+#     elif dim_x == 2:
+#         feature_names = ["X0", "X1"]
+#         if dim_k == 1:
+#             feature_names += ["X2"]
+#     else: # dim_x == 3
+#         feature_names = ["X0", "X1", "X2"]
+#         if dim_k == 1:
+#             feature_names += ["X3"]
 
-    # if dim_k == 1:
-    #     feature_names +=  ["a"]
-    # elif dim_k == 2:
-    #     feature_names +=  ["a", "b"]
+#     # if dim_k == 1:
+#     #     feature_names +=  ["a"]
+#     # elif dim_k == 2:
+#     #     feature_names +=  ["a", "b"]
+
+#     return X_list, dX_list, param_list, feature_names
+
+
+import numpy as np
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import root_mean_squared_error
+
+# -----------------------------
+# Funzione per preparare dati SINDy HD
+# -----------------------------
+def SINDy_data_HD(ode_name, ode_param, freq, n_sample, noise_ratio,
+                  dim_x, dim_k, T0=0, T=15, latent_data=None):
+    """
+    Prepara i dati per SINDy ad alta dimensione usando le traiettorie latenti.
+
+    Returns:
+    --------
+    X_list : list of np.ndarray, shape (T_eff, dim_x)
+    dX_list : list of np.ndarray, shape (T_eff, dim_x)
+    param_list : list of np.ndarray or None, shape (T_eff, dim_k)
+    feature_names : list of str
+    """
+    
+    np.random.seed(999)
+    dt = 1 / freq
+
+    # Copia dei dati latenti
+    yt = latent_data.copy()  # shape: (T, n_traj, d)
+    
+    # Taglio iniziale T0
+    if T0 > 0:
+        yt = yt[T0*freq:, :, :]
+
+    # --- Differenze finite centrate ---
+    dxdt_hat = (yt[2:, :, :] - yt[:-2, :, :]) / (2 * dt)
+    yt_center = yt[1:-1, :, :]  # Allinea alla derivata
+
+    # --- Dataset ---
+    X_states = yt_center[:, :, :dim_x]  # (T_eff, n_traj, dim_x)
+    n_traj = X_states.shape[1]
+    T_eff = X_states.shape[0]
+
+    dX = dxdt_hat[:, :, :dim_x]  # (T_eff, n_traj, dim_x)
+
+    # --- Parametri aggiuntivi ---
+    param_list = None
+    if dim_k > 0:
+        param_train = yt_center[:, :, -dim_k:]  # (T_eff, n_traj, dim_k)
+        param_train = np.transpose(param_train, (1, 0, 2))  # (n_traj, T_eff, dim_k)
+        param_list = [param_train[i] for i in range(n_traj)]
+
+    # --- Trasformo X e dX in liste ---
+    X_train = np.transpose(X_states, (1, 0, 2))  # (n_traj, T_eff, dim_x)
+    dX_train = np.transpose(dX, (1, 0, 2))       # (n_traj, T_eff, dim_x)
+    X_list = [X_train[i] for i in range(n_traj)]
+    dX_list = [dX_train[i] for i in range(n_traj)]
+
+    # --- Nomi delle features ---
+    feature_names = [f"X{i}" for i in range(dim_x)]
+    if dim_k > 0:
+        feature_names += [f"X{dim_x + i}" for i in range(dim_k)]
 
     return X_list, dX_list, param_list, feature_names
 
 
-
+# -----------------------------
+# Funzione per calcolare RMSE / MSE
+# -----------------------------
 def evaluate_RMSE_HD(model, latent_data, freq, n_sample, T0, T, dim_k=1):
-    # function computing the RMSE (and the MSE) of a given model between T0 and T for an HD data: 
+    """
+    Calcola RMSE e MSE tra le traiettorie predette e quelle vere.
 
-    np.random.seed(666)
+    latent_data: np.ndarray di shape (T, n_traj, d)
+    """
     dt = 1 / freq
 
-    # input trajectories:
-    xt_true = np.array(latent_data)[:n_sample, :, :]# Shape: (N_sample, Nt, dim_x)
-    xt_true = np.transpose(xt_true, (1, 0, 2)) 
-    #print(np.shape(xt_true))
+    # --- Se latent_data è lista, converti in array 3D ---
+    if isinstance(latent_data, list):
+        # Se ci sono parametri extra, includili
+        d = latent_data[0].shape[1]
+        latent_data = np.stack(latent_data[:n_sample], axis=1)  # (T, n_sample, dim_x)
+    
+    # Taglio T0
+    if T0 > 0:
+        latent_data = latent_data[T0*freq:, :n_sample, :]
 
-    if T0: # if T0>0, cut portion [0,T0] 
-        xt_true = xt_true[T0*freq:, :, :]
-    #print(np.shape(xt_true))
+    T_len = latent_data.shape[0]
 
-
-    # estimated trajectories:
-    pred_0_list = []
-    for i in range(n_sample):
-
-        correct_param = xt_true[0, i, -dim_k:]
-        #print(np.shape(correct_param))
-
-        t = np.arange(T0,T,dt)
-        T_plot = len(t)
-        test_params = np.tile(correct_param, (T_plot,1))
-        if dim_k != 0:
-            pred_0 = model.simulate(xt_true[0, i, :][:-dim_k], t= t[:T_plot], u = test_params)
-        else: # dim_k == 0
-            pred_0 = model.simulate(xt_true[0, i, :], t= t[:T_plot])
-        pred_0_list.append(pred_0)
-    #print(np.shape(pred_0_list))
-
-
-    xt_true = xt_true[:len(pred_0), :, :]
+    # --- Allinea dimensioni e differenze finite centrate ---
+    dxdt_hat = (latent_data[2:, :, :] - latent_data[:-2, :, :]) / (2*dt)
+    xt_center = latent_data[1:-1, :, :]
+    
     if dim_k != 0:
-        xt_true = xt_true[:, :, :-dim_k]
-    xt_true = xt_true.squeeze()
-    #print(np.shape(xt_true)) #(151, 25, 2)
-    pred_0_list = np.transpose(pred_0_list, (1, 0, 2))
-    pred_0_list = pred_0_list.squeeze()
-    #print(np.shape(pred_0_list)) #(151, 25, 2)
+        xt_states = xt_center[:, :, :-dim_k]
+    else:
+        xt_states = xt_center.copy()
+    
+    n_traj = xt_states.shape[1]
+    T_len = xt_states.shape[0]
 
-    # RMSE:
-    rmse_0_list = []
-    mse_0_list = []
-    for i in range(n_sample):
-        rmse_0 = root_mean_squared_error(xt_true[:, i], pred_0_list[:,i]) 
-        mse_0 = mean_squared_error(xt_true[:, i], pred_0_list[:,i])
-        rmse_0_list.append(rmse_0)
-        mse_0_list.append(mse_0)
-    rmse_0 = np.mean(rmse_0_list)
-    mse_0 = np.mean(mse_0_list)
-    return rmse_0, mse_0
+    # --- Simulazione modello ---
+    pred_list = []
+    t = np.arange(0, T_len*dt, dt)
+    for i in range(n_traj):
+        if dim_k != 0:
+            param_i = xt_center[0, i, -dim_k:]
+            u = np.tile(param_i, (T_len, 1))
+            pred_i = model.simulate(xt_states[0, i, :], t=t, u=u)
+        else:
+            pred_i = model.simulate(xt_states[0, i, :], t=t)
+        pred_list.append(pred_i)
+
+    pred_array = np.array(pred_list)              # (n_traj, T_len, dim_x)
+    pred_array = np.transpose(pred_array, (1,0,2))  # (T_len, n_traj, dim_x)
+
+    # --- RMSE e MSE ---
+    rmse_list = []
+    mse_list = []
+    for i in range(n_traj):
+        rmse_list.append(root_mean_squared_error(xt_states[:, i, :], pred_array[:, i, :]))
+        mse_list.append(mean_squared_error(xt_states[:, i, :], pred_array[:, i, :]))
+
+    rmse_mean = np.mean(rmse_list)
+    mse_mean = np.mean(mse_list)
+
+    return rmse_mean, mse_mean

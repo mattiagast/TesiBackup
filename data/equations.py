@@ -89,7 +89,9 @@ def get_ode(ode_name, param):
     elif ode_name == 'TVVdpODE':
         ode = TVVdpODE(param)
     elif ode_name == 'TVVdpODE2':
-        ode = TVVdpODE2(param)  
+        ode = TVVdpODE2(param)
+    elif ode_name == 'DoubleGyre':
+        ode = DoubleGyre(param)
     else:
         raise ValueError('{} is not a supported ode.'.format(ode_name))
     return ode
@@ -1998,3 +2000,48 @@ class ReactionDiffusion(ODE):
         new_ode = ReactionDiffusion(theta)
         return new_ode.dx_dt_batch
 
+
+class DoubleGyre(ODE):
+    """
+    Double Gyre class for the HD test.
+    Note: this ODE is a fictitius ODE aiming to store the training information 
+    """
+
+    def __init__(self, param=None):
+        super().__init__(2, param)
+        self.a, self.b = self.param
+        self.init_high = [1., 1.]
+        self.init_low = [0., 0.]
+
+        self.positive = False
+
+        self.T = 10
+
+        self.name = 'DoubleGyre'
+        self.std_base = 1.0
+
+    def _dx_dt(self, X, Y):
+        dxdt = 1 + 0*X
+        dydt = 1 + 0*Y
+        return [dxdt, dydt]
+
+    def get_default_param(self):
+        return 1., 1.
+
+    def get_expression(self):
+        var_dict = self.get_var_dict()
+        X0 = var_dict['X0']
+        X1 = var_dict['X1']
+        C = var_dict['C']
+        if self.has_coef:
+            eq1 = C + 0*X0
+            eq2 = C + 0*X1
+        else:
+            eq1 = C + 0*X0
+            eq2 = C + 0*X1
+        return [eq1, eq2]
+
+    def functional_theta(self, theta):
+        assert len(theta) == 2
+        new_ode = DoubleGyre(theta)
+        return new_ode.dx_dt_batch
